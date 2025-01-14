@@ -1,4 +1,3 @@
-import numpy as np
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,15 +6,15 @@ from utils import TOKEN, API_URL
 from clustering import preprocess_data, perform_kmeans, get_cluster_members, plot_clusters
 
 
-def get_data_p2p():
+def get_data_p2p(token=TOKEN, api_url=API_URL):
 
     headers = {
-        'Authorization': f'Bearer {TOKEN}',  
+        'Authorization': f'Bearer {token}',  
         'Accept': 'application/json'  
     }
     
     try:
-        response = requests.get(API_URL, headers=headers)
+        response = requests.get(api_url, headers=headers)
         response.raise_for_status() 
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -82,9 +81,6 @@ def plot_daily_spread(market_makers, coin):
 
     return fig
 
-
-import pandas as pd
-import matplotlib.pyplot as plt
 
 def analyze_volume(df, coin):
     coin_data = df[df['Coin'] == coin]

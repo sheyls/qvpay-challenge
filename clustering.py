@@ -6,7 +6,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
 
 
-
 def preprocess_data(df):
 
     for col in ['Amount', 'Receive', 'Average Rating']:

@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import TOKEN, API_URL
-from clustering import preprocess_data, perform_kmeans, get_cluster_members, plot_clusters
+from clustering import plot_clusters
 from main import get_data_p2p, turn_data_into_df, data_clustization, identify_market_makers, plot_daily_spread, analyze_volume
+
+from utils import TOKEN, API_URL
 
 def main():
     st.title("Analyzing Qvapay Data")
@@ -11,6 +12,13 @@ def main():
     # Sidebar for parameters
     st.sidebar.subheader("Data Source")
     data_source = st.sidebar.radio("Select Data Source", ["API", "JSON"])
+
+    if data_source == "API":
+        st.sidebar.info(
+            "To fetch data from the API, you need to provide your API token. "
+            "You can obtain it by logging into the Qvapay dashboard."
+        )
+        TOKEN = st.sidebar.text_input("API Token", type="password")
 
     st.sidebar.header("Parameters")
     n_clusters = st.sidebar.slider("Number of Clusters", min_value=2, max_value=10, value=4)
@@ -33,7 +41,7 @@ def main():
     if data_source == "API":
         if st.button("Fetch Data from API"):
             with st.spinner("Fetching data from Qvapay API..."):
-                data = get_data_p2p()
+                data = get_data_p2p(TOKEN, API_URL)
                 st.session_state.df = turn_data_into_df(data)
                 st.success("Data fetched successfully!")
     elif data_source == "JSON":
