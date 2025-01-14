@@ -35,7 +35,7 @@ def preprocess_data(df):
 
     result_df = pd.merge(user_stats, df_keys, on='Username', how='left')
 
-    return scaled_df, scaler, result_df
+    return scaled_df, result_df
 
 def perform_kmeans(df, n_clusters, max_iter=300, tol=1e-4):
 

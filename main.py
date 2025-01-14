@@ -1,9 +1,10 @@
+import numpy as np
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from utils import TOKEN, API_URL
-from clustering import preprocess_data, perform_kmeans, plot_clusters
+from clustering import preprocess_data, perform_kmeans, get_cluster_members, plot_clusters
 
 
 def get_data_p2p():
@@ -81,33 +82,83 @@ def plot_daily_spread(market_makers, coin):
     plt.grid()
     plt.show()
 
-def main():
+def analyze_volume(df, coin):
 
-    data = get_data_p2p()
-    print(data)
+    coin_data = df[df['Coin'] == coin]
 
-    df = turn_data_into_df(data)
+    if coin_data.empty:
+        print(f"No se encontraron transacciones para la moneda {coin}.")
+        return
+
+    coin_data['Created At'] = pd.to_datetime(coin_data['Created At'])
+
+    daily_offer = coin_data[coin_data['Type'] == 'sell'].groupby(coin_data['Created At'].dt.date)['Amount'].sum()
+    daily_demand = coin_data[coin_data['Type'] == 'buy'].groupby(coin_data['Created At'].dt.date)['Amount'].sum()
+
+    volume_comparison = pd.DataFrame({
+        'Oferta': daily_offer,
+        'Demanda': daily_demand
+    }).fillna(0)
+
+    consistent_demand = (volume_comparison['Demanda'] > volume_comparison['Oferta']).sum()
+    consistent_offer = (volume_comparison['Oferta'] > volume_comparison['Demanda']).sum()
+
+    if consistent_demand > consistent_offer:
+        print("La demanda supera consistentemente a la oferta.")
+    elif consistent_offer > consistent_demand:
+        print("La oferta supera consistentemente a la demanda.")
+    else:
+        print("La oferta y la demanda están equilibradas.")
+
+    volume_comparison.plot(kind='bar', figsize=(12, 6), title=f'Volumen Diario de Oferta y Demanda para {coin}')
+    plt.xlabel('Fecha')
+    plt.ylabel('Volumen')
+    plt.show()
+
+def data_clustization(df, n_clusters=4, plot=True):
     scaled_df, result_df = preprocess_data(df)
 
-    results = perform_kmeans(scaled_df, n_clusters=4)
+    results = perform_kmeans(scaled_df, n_clusters=n_clusters)
 
     result_df['cluster_label'] = results['labels']
 
-    plot_clusters(result_df, 'Total_Transactions', 'Total_Volume', 'cluster_label')
-    
-    cluster_label = 1
+
+    if plot:
+        plot_clusters(result_df, 'Total_Transactions', 'Total_Volume', 'cluster_label')
+
+    return result_df
+
+def identify_market_makers(df, result_df, cluster_label=None):
+    if cluster_label is None:
+        # Heurística: Seleccionar el cluster con el mayor centroide en Total_Transactions y Total_Volume
+        cluster_centers = result_df.groupby('cluster_label')[['Total_Transactions', 'Total_Volume']].mean()
+        cluster_label = cluster_centers.sum(axis=1).idxmax() 
+
+    print(f"Cluster seleccionado: {cluster_label}")
     cluster_members = result_df[result_df['cluster_label'] == cluster_label]
 
     print(cluster_members[['User UUID', 'Username', 'Name', 'Lastname']])
 
     market_makers = df[df['Username'].isin(cluster_members['Username'])]
 
+    return market_makers
+
+def main():
+
+    data = get_data_p2p()
+    print(data)
+
+    df = turn_data_into_df(data)
+    
+    result_df = data_clustization(df, n_clusters=4, plot=True)
+
+    market_makers = identify_market_makers(df, result_df)
+
     print(market_makers.head())
 
-    resultado = plot_daily_spread(market_makers, 'BANK_MLC')
-
-    print(resultado.head())
-
+    plot_daily_spread(market_makers, 'BANK_MLC')
+    
+    analyze_volume(df, 'BANK_MLC')
 
 if __name__ == "__main__":
     main()
