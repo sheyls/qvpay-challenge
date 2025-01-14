@@ -81,10 +81,11 @@ def plot_clusters(user_stats, x_col, y_col, cluster_col, title="Clustering Visua
     unique_clusters = user_stats[cluster_col].unique()
     palette = sns.color_palette("tab10", len(unique_clusters))
 
-    plt.figure(figsize=(8, 6))
+    # Crear figura y ejes
+    fig, ax = plt.subplots(figsize=(8, 6))
     for i, cluster in enumerate(unique_clusters):
         cluster_data = user_stats[user_stats[cluster_col] == cluster]
-        plt.scatter(
+        ax.scatter(
             cluster_data[x_col],
             cluster_data[y_col],
             color=palette[i],
@@ -93,11 +94,15 @@ def plot_clusters(user_stats, x_col, y_col, cluster_col, title="Clustering Visua
             alpha=0.7
         )
 
-    plt.legend(title="Clusters")
-    plt.xlabel(x_col)
-    plt.ylabel(y_col)
-    plt.title(title)
-    plt.show()
+    # Configurar etiquetas y leyenda
+    ax.legend(title="Clusters")
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+    ax.set_title(title)
+    ax.grid(True)
+
+    # Devolver figura
+    return fig
 
 def get_cluster_members(df_with_labels, cluster_label):
 

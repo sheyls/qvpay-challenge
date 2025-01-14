@@ -56,64 +56,70 @@ def plot_daily_spread(market_makers, coin):
 
     if coin_data.empty:
         print(f"No se encontraron transacciones de Market Makers para la moneda {coin}.")
-        return
+        return None
 
     print(f"Transacciones de Market Makers para {coin}: {coin_data.shape[0]}")
 
-    coin_data = coin_data.copy()  
+    coin_data = coin_data.copy()
     coin_data['Created At'] = pd.to_datetime(coin_data['Created At'])
-
     coin_data['Coin Price'] = pd.to_numeric(coin_data['Coin Price'], errors='coerce')
-
     coin_data['Spread'] = coin_data['Coin Price'].diff().abs()
 
     daily_spread = coin_data.groupby(coin_data['Created At'].dt.date)['Spread'].mean()
 
     if daily_spread.empty:
         print(f"No se pudo calcular el spread diario para la moneda {coin}.")
-        return
+        return None
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(daily_spread.index, daily_spread.values, marker='o', label=f'Promedio Diario del Spread ({coin})')
-    plt.xlabel('Fecha')
-    plt.ylabel('Spread Promedio')
-    plt.title(f'Promedio Diario del Spread para {coin}')
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # Crear la figura y los ejes
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(daily_spread.index, daily_spread.values, marker='o', label=f'Promedio Diario del Spread ({coin})')
+    ax.set_xlabel('Fecha')
+    ax.set_ylabel('Spread Promedio')
+    ax.set_title(f'Promedio Diario del Spread para {coin}')
+    ax.legend()
+    ax.grid()
+
+    return fig
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
 
 def analyze_volume(df, coin):
-
     coin_data = df[df['Coin'] == coin]
 
     if coin_data.empty:
         print(f"No se encontraron transacciones para la moneda {coin}.")
-        return
+        return None
+
+    # Asegurarse de que la columna 'Amount' sea numérica
+    coin_data['Amount'] = pd.to_numeric(coin_data['Amount'], errors='coerce')
 
     coin_data['Created At'] = pd.to_datetime(coin_data['Created At'])
 
     daily_offer = coin_data[coin_data['Type'] == 'sell'].groupby(coin_data['Created At'].dt.date)['Amount'].sum()
     daily_demand = coin_data[coin_data['Type'] == 'buy'].groupby(coin_data['Created At'].dt.date)['Amount'].sum()
 
+    # Crear el DataFrame asegurándose de que los valores sean numéricos
     volume_comparison = pd.DataFrame({
         'Oferta': daily_offer,
         'Demanda': daily_demand
     }).fillna(0)
 
-    consistent_demand = (volume_comparison['Demanda'] > volume_comparison['Oferta']).sum()
-    consistent_offer = (volume_comparison['Oferta'] > volume_comparison['Demanda']).sum()
+    # Convertir las columnas a numéricas si no lo están
+    volume_comparison['Oferta'] = pd.to_numeric(volume_comparison['Oferta'], errors='coerce')
+    volume_comparison['Demanda'] = pd.to_numeric(volume_comparison['Demanda'], errors='coerce')
 
-    if consistent_demand > consistent_offer:
-        print("La demanda supera consistentemente a la oferta.")
-    elif consistent_offer > consistent_demand:
-        print("La oferta supera consistentemente a la demanda.")
-    else:
-        print("La oferta y la demanda están equilibradas.")
+    # Crear figura y ejes
+    fig, ax = plt.subplots(figsize=(12, 6))
+    volume_comparison.plot(kind='bar', ax=ax)
+    ax.set_title(f'Volumen Diario de Oferta y Demanda para {coin}')
+    ax.set_xlabel('Fecha')
+    ax.set_ylabel('Volumen')
 
-    volume_comparison.plot(kind='bar', figsize=(12, 6), title=f'Volumen Diario de Oferta y Demanda para {coin}')
-    plt.xlabel('Fecha')
-    plt.ylabel('Volumen')
-    plt.show()
+    return fig
+
 
 def data_clustization(df, n_clusters=4, plot=True):
     scaled_df, result_df = preprocess_data(df)
@@ -128,11 +134,12 @@ def data_clustization(df, n_clusters=4, plot=True):
 
     return result_df
 
-def identify_market_makers(df, result_df, cluster_label=None):
-    if cluster_label is None:
+def identify_market_makers(df, result_df, cluster_label=-1):
+    if cluster_label == -1:
         # Heurística: Seleccionar el cluster con el mayor centroide en Total_Transactions y Total_Volume
         cluster_centers = result_df.groupby('cluster_label')[['Total_Transactions', 'Total_Volume']].mean()
-        cluster_label = cluster_centers.sum(axis=1).idxmax() 
+        cluster_label = cluster_centers.sum(axis=1).idxmax()
+        print("entree")
 
     print(f"Cluster seleccionado: {cluster_label}")
     cluster_members = result_df[result_df['cluster_label'] == cluster_label]
