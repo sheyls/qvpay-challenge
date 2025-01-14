@@ -57,17 +57,18 @@ def main():
         st.dataframe(st.session_state.df, use_container_width=True)
 
     # Clustering
-    st.subheader("Clustering")
-    if st.session_state.df is None:
-        st.warning("Please fetch data from API or upload a JSON file to proceed.")
-    elif st.button("Perform Clustering"):
-        with st.spinner("Performing clustering..."):
-            st.session_state.result_df = data_clustization(st.session_state.df, n_clusters=n_clusters, plot=False)
-            st.success("Clustering completed!")
-            st.write("Clustering Results:")
-            st.dataframe(st.session_state.result_df.head())
-            fig = plot_clusters(st.session_state.result_df, 'Total_Transactions', 'Total_Volume', 'cluster_label')
-            st.pyplot(fig)
+    if st.session_state.df is not None:
+        st.subheader("Clustering")
+        if st.session_state.df is None:
+            st.warning("Please fetch data from API or upload a JSON file to proceed.")
+        elif st.button("Perform Clustering"):
+            with st.spinner("Performing clustering..."):
+                st.session_state.result_df = data_clustization(st.session_state.df, n_clusters=n_clusters, plot=False)
+                st.success("Clustering completed!")
+                st.write("Clustering Results:")
+                st.dataframe(st.session_state.result_df.head())
+                fig = plot_clusters(st.session_state.result_df, 'Total_Transactions', 'Total_Volume', 'cluster_label')
+                st.pyplot(fig)
 
     # Identify Market Makers
     if st.session_state.result_df is not None:
@@ -86,7 +87,7 @@ def main():
         st.subheader("Daily Spread Analysis")
         with st.spinner("Plotting daily spread..."):
             fig_spread = plot_daily_spread(st.session_state.market_makers, coin)
-            if fig_spread:  # Asegurarse de que no sea None
+            if fig_spread:
                 st.pyplot(fig_spread)
             else:
                 st.warning(f"No data available to plot daily spread for {coin}.")

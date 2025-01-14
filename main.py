@@ -49,7 +49,6 @@ def turn_data_into_df(data):
 
     return df
 
-
 def plot_daily_spread(market_makers, coin):
     coin_data = market_makers[market_makers['Coin'] == coin]
 
@@ -60,23 +59,48 @@ def plot_daily_spread(market_makers, coin):
     print(f"Transacciones de Market Makers para {coin}: {coin_data.shape[0]}")
 
     coin_data = coin_data.copy()
-    coin_data['Created At'] = pd.to_datetime(coin_data['Created At'])
+    coin_data['Created At'] = pd.to_datetime(coin_data['Created At'], errors='coerce')
+
+    coin_data = coin_data.dropna(subset=['Created At', 'Coin Price'])
+
+    coin_data['Coin Price'] = coin_data['Coin Price'].astype(str)
+    coin_data['Coin Price'] = coin_data['Coin Price'].str.replace(r'[^0-9.]', '', regex=True)
     coin_data['Coin Price'] = pd.to_numeric(coin_data['Coin Price'], errors='coerce')
-    coin_data['Spread'] = coin_data['Coin Price'].diff().abs()
 
-    daily_spread = coin_data.groupby(coin_data['Created At'].dt.date)['Spread'].mean()
+    coin_data = coin_data.dropna(subset=['Coin Price'])
 
-    if daily_spread.empty:
-        print(f"No se pudo calcular el spread diario para la moneda {coin}.")
-        return None
+    coin_data['Type'] = coin_data['Type'].str.strip().str.lower()
 
-    # Crear la figura y los ejes
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(daily_spread.index, daily_spread.values, marker='o', label=f'Promedio Diario del Spread ({coin})')
+    market_maker_ids = coin_data['User UUID'].unique()
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    for market_maker in market_maker_ids:
+        mm_data = coin_data[coin_data['User UUID'] == market_maker]
+
+        username = mm_data['Username'].iloc[0] if not mm_data['Username'].empty else f"UUID {market_maker}"
+
+        daily_sell = mm_data[mm_data['Type'] == 'sell'].groupby(mm_data['Created At'].dt.date)['Coin Price'].mean()
+        daily_buy = mm_data[mm_data['Type'] == 'buy'].groupby(mm_data['Created At'].dt.date)['Coin Price'].mean()
+
+        all_dates = pd.date_range(start=coin_data['Created At'].min(), end=coin_data['Created At'].max())
+        daily_sell = daily_sell.reindex(all_dates, fill_value=0)
+        daily_buy = daily_buy.reindex(all_dates, fill_value=0)
+
+        daily_spread = daily_sell - daily_buy
+
+        if not daily_spread.empty:
+            ax.plot(
+                daily_spread.index, 
+                daily_spread.values, 
+                marker='o', 
+                label=f'Market Maker: {username}'
+            )
+
     ax.set_xlabel('Fecha')
     ax.set_ylabel('Spread Promedio')
-    ax.set_title(f'Promedio Diario del Spread para {coin}')
-    ax.legend()
+    ax.set_title(f'Promedio Diario del Spread por Market Maker para {coin}')
+    ax.legend(title="Market Makers", loc='best', bbox_to_anchor=(1, 1))
     ax.grid()
 
     return fig
