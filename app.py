@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import io
 from clustering import plot_clusters
 from main import get_data_p2p, turn_data_into_df, data_clustization, identify_market_makers, plot_daily_spread, analyze_volume
 
@@ -97,11 +98,14 @@ def main():
         st.subheader("Volume Analysis")
         with st.spinner("Analyzing volume..."):
             fig_volume = analyze_volume(st.session_state.df, coin)
-            if fig_volume:  # Asegurarse de que no sea None
-                st.pyplot(fig_volume)
+            if fig_volume: 
+                buffer = io.BytesIO()
+                fig_volume.savefig(buffer, format="png")
+                buffer.seek(0)
+                
+                st.image(buffer, caption=f"Volume Analysis for {coin}", use_column_width=True)
             else:
                 st.warning(f"No data available for volume analysis of {coin}.")
-
 
 if __name__ == "__main__":
     main()

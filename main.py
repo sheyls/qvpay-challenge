@@ -6,47 +6,52 @@ from utils import TOKEN, API_URL
 from clustering import preprocess_data, perform_kmeans, get_cluster_members, plot_clusters
 
 
-def get_data_p2p(token=TOKEN, api_url=API_URL):
+def get_data_p2p(token, api_url="https://qvapay.com/api/p2p"):
+    all_data = [] 
+    current_url = api_url
 
-    headers = {
-        'Authorization': f'Bearer {token}',  
-        'Accept': 'application/json'  
-    }
-    
-    try:
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status() 
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Error al conectar con la API: {e}")
-    except Exception as e:
-        raise Exception(f"Error inesperado: {e}")
+    while current_url:
+        try:
+            response = requests.get(current_url, headers={'Accept': 'application/json'})
+            response.raise_for_status()
+            data = response.json()
+
+            if 'data' in data:
+                all_data.extend(data['data'])
+
+            current_url = data.get('next_page_url')
+
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Error al conectar con la API: {e}")
+        except Exception as e:
+            raise Exception(f"Error inesperado: {e}")
+
+    return all_data
 
 def turn_data_into_df(data):
     transactions = []
-    for transaction in data['data']:
+    for transaction in data:
         transactions.append({
-            'Transaction UUID': transaction['uuid'],
-            'Type': transaction['type'],
-            'Coin': transaction['coin'],
-            'Amount': transaction['amount'],
-            'Receive': transaction['receive'],
-            'Message': transaction['message'],
-            'Status': transaction['status'],
-            'Created At': transaction['created_at'],
-            'Updated At': transaction['updated_at'],
-            'Coin Name': transaction['coin_data']['name'],
-            'Coin Price': transaction['coin_data']['price'],
-            'User UUID': transaction['owner']['uuid'],
-            'Username': transaction['owner']['username'],
-            'Name': transaction['owner']['name'],
-            'Lastname': transaction['owner']['lastname'],
-            'KYC': transaction['owner']['kyc'],
-            'Average Rating': transaction['owner']['average_rating'],
+            'Transaction UUID': transaction.get('uuid'),
+            'Type': transaction.get('type'),
+            'Coin': transaction.get('coin'),
+            'Amount': transaction.get('amount'),
+            'Receive': transaction.get('receive'),
+            'Message': transaction.get('message'),
+            'Status': transaction.get('status'),
+            'Created At': transaction.get('created_at'),
+            'Updated At': transaction.get('updated_at'),
+            'Coin Name': transaction.get('coin_data', {}).get('name', None), 
+            'Coin Price': transaction.get('coin_data', {}).get('price', None), 
+            'User UUID': transaction.get('owner', {}).get('uuid', None), 
+            'Username': transaction.get('owner', {}).get('username', None),
+            'Name': transaction.get('owner', {}).get('name', None),
+            'Lastname': transaction.get('owner', {}).get('lastname', None),
+            'KYC': transaction.get('owner', {}).get('kyc', None),
+            'Average Rating': transaction.get('owner', {}).get('average_rating', None),
         })
 
     df = pd.DataFrame(transactions)
-
     return df
 
 def plot_daily_spread(market_makers, coin):
@@ -105,6 +110,11 @@ def plot_daily_spread(market_makers, coin):
 
     return fig
 
+import matplotlib.pyplot as plt
+import pandas as pd
+
+import pandas as pd
+import matplotlib.pyplot as plt
 
 def analyze_volume(df, coin):
     coin_data = df[df['Coin'] == coin]
@@ -132,14 +142,23 @@ def analyze_volume(df, coin):
     volume_comparison['Demanda'] = pd.to_numeric(volume_comparison['Demanda'], errors='coerce')
 
     # Crear figura y ejes
-    fig, ax = plt.subplots(figsize=(12, 6))
-    volume_comparison.plot(kind='bar', ax=ax)
-    ax.set_title(f'Volumen Diario de Oferta y Demanda para {coin}')
-    ax.set_xlabel('Fecha')
-    ax.set_ylabel('Volumen')
+    fig, ax = plt.subplots(figsize=(16, 8))  
+    
+    # Cambiar colores de las barras
+    volume_comparison.plot(kind='bar', ax=ax, width=0.8, color=['red', 'green'])
+    
+    ax.set_title(f'Volumen Diario de Oferta y Demanda para {coin}', fontsize=16)
+    ax.set_xlabel('Fecha', fontsize=12)
+    ax.set_ylabel('Volumen', fontsize=12)
+
+    # Reducir el número de etiquetas en el eje X
+    num_ticks = 10  # Muestra solo 10 etiquetas en el eje X
+    ax.set_xticks(range(0, len(volume_comparison), max(1, len(volume_comparison) // num_ticks)))
+    ax.set_xticklabels(volume_comparison.index[::max(1, len(volume_comparison) // num_ticks)], rotation=45, fontsize=10)
+
+    plt.tight_layout()  # Asegurarse de que todo se ajuste en la figura
 
     return fig
-
 
 def data_clustization(df, n_clusters=4, plot=True):
     scaled_df, result_df = preprocess_data(df)
